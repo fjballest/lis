@@ -1,0 +1,55 @@
+You don't really need to know this stuff if you just want to use
+STREAMS.  This information is most useful if you are developing
+a STREAMS driver and are looking for a user-level test harness
+or if you think you have found a bug in STREAMS and would like to
+code up a test case for it in the STREAMS regression test program.
+
+The kernel patch file installs the source code for several test
+programs in the directory /usr/src/linux/drivers/streams/LiS/util.
+These programs are as follows:
+
+  strtst.c		STREAMS regression test program.  This program
+			tests the features of STREAMS.  More about
+			this program later.
+
+  timetst.c		STREAMS performance test program.  This program
+			is used to measure the time it takes to send
+			a message from user level down to a STREAMS
+			driver and read it back.
+
+  polltst.c		STREAMS poll test program.  This program uses
+			the STREAMS poll system call to test the ability
+			of an application to use "poll()" on both
+			STREAMS and non-STREAMS file descriptors.
+
+The strtst and timetst programs come in two different versions.
+The STREAMS code is set up in such a way that it can be installed
+in the kernel, its intended environment, or it can be compiled as
+a library which can be linked into a stand-alone user-mode test
+program for testing.  This latter form is (was) especially useful
+to me, as a developer of the STREAMS executive itself, for testing
+purposes.
+
+Consequently, the strtst and timetst programs can be built in either
+of two modes.  In the one case, they are user-mode programs which 
+communicate with STREAMS in the kernel.  This is the operational
+mode.  In the other case, they are linked in with a version of
+the STREAMS code and the whole thing is run at user-level.
+
+Obviously, when running user-level tests you cannot test drivers
+which field interrupts and play with hardware.  This mode is suitable
+for "dry-dock" testing of drivers or, in the case for which it was
+invented, testing the STREAMS code itself.
+
+Here is where to go to make the two different versions of strtst and
+timetst.
+
+    .../LiS/head/user		Do "make strtst timetst" to make the
+				user mode versions of the test programs.
+
+    .../LiS/head/linux		Do "make strtst timetst" to make the
+				versions which interact with the kernel
+				version of STREAMS.
+
+David Grothe
+<dave@gcom.com>

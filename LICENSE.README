@@ -1,0 +1,33 @@
+		      LiS (Linux STREAMS) license notes
+    ----------------------------------------------------------------------
+
+	This is LiS (SVr4 conformant STREAMS for Linux), also known as
+5LiS. LiS does not contain any code from SVr4 u*x and as of today is under
+GNU General Public License (GPL). 
+
+Check out LICENSE for details on GPL conditions. Each file is copyrighted to
+the set of volunteers who developed such file. As of today, the STREAM head
+library (head/ and include/ directories) are (C) Graham Wheeler, Francisco
+J. Ballesteros and David Grothe under GPL.
+
+
+NOTE from: Francisco J. Ballesteros, (nemo@ordago.uc3m.es):
+
+I've attached GPL (GNU General Public License) to the sources to avoid
+problems caused by keeping them in ordago's anon FTP (see LICENSE for
+details). This is just to avoid any company out there getting the
+distribution, fixing it and selling it.
+
+Anyway it all is so simple, just add your Name to the (c) for the files you
+modify. If you want to do so open a thread in linux-streams@ordago.uc3m.es
+about what should be the LiS copying policy.
+
+At first, I picked GLPL (Library Public License) as it looked fine to me and
+no one else said anything when I asked to the list. Then I decided to move to
+GPL as we can easily mv from a more restrictive one to a less restrictive one,
+but the reverse is not so true :-). Anyway, we can change it if we agree on
+something else.
+
+Francisco J. Ballesteros 
+
+

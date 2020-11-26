@@ -1,0 +1,8 @@
+#define	LOOP_IOCTL(n)	(('l' << 8) | (n))
+#define LOOP_SET	LOOP_IOCTL(1)
+#define LOOP_PUTNXT	LOOP_IOCTL(2)
+#define	LOOP_MSGLVL	LOOP_IOCTL(3)
+#define	LOOP_TIMR	LOOP_IOCTL(4)
+#define	LOOP_MARK	LOOP_IOCTL(5)
+#define	LOOP_GET_DEV	LOOP_IOCTL(6)
+#define	LOOP_BUFCALL	LOOP_IOCTL(7)

@@ -1,0 +1,127 @@
+			Patching the Kernel
+			===================
+
+The LiS distribution contains a patch file that is intended for use
+in the 2.0.24 version of the kernel.  Other kernels of about that
+vintage will probably work just fine.
+
+The patches are located in the file patches.streams.  To apply
+these patches do the following, assuming that you un-tarred LiS
+into the directory /usr/src/LiS.
+
+      cd /usr/src/linux
+      patch -p1 </usr/src/LiS/patches.streams
+      make clean
+      make depend
+      make zImage
+      lilo          (probably)
+
+The resulting kernel should have the STREAMS executive installed
+in it.  You can boot the updated kernel at this point.
+
+
+		    Completing the Installation
+		    ===========================
+
+When the new kernel comes up, try out STREAMS by doing the following:
+
+    cd /usr/src/linux/drivers/streams/LiS/head/linux
+    ./makenodes
+
+This will make the /dev entries specified by the STREAMS "config"
+that was compiled into the kernel.  Don't be concerned about the
+contents of "config" just yet.  The default will do.
+
+Then enter the following line:
+
+    cat /dev/runq &
+
+This opens the "runq" driver which will enter a sleep-wakeup loop
+and run the STREAMS queues.
+
+At this point the STREAMS system is ready to run.
+
+
+			Testing STREAMS
+			===============
+
+You can test STREAMS by doing the following:
+
+    cd /usr/src/linux/drivers/streams/LiS/head/linux
+    make strtst timetst
+
+Run strtst (no parameters) to put STREAMS through its regression
+test.  The output from this program will be VOLUMINOUS.  A copy
+of it will go into your "syslog" file as well.  You may very well
+not want to run this program.
+
+Run timetst (no parameters) to time the round-trip time of writing
+a message down to a STREAMS driver and reading it back.  This program
+produces a small amount of output.  Try it.
+
+
+			Add a Line to rc.local
+			======================
+
+If STREAMS seems to work OK and you want to run it all the time the
+put the following line into your rc.local file.  This will run the
+queues automatically when the system comes up after each boot.
+
+	cat /dev/runq &
+
+
+			Utility Programs
+			================
+
+The utility programs have already been made and copied to /usr/local/bin.
+
+If you have tried strtst or timetst, above, try the following:
+
+    streams -s
+
+This will print out a summary of STREAMS activity.
+
+
+
+		    Files and Directories
+		    =====================
+
+The patch file will create the following directory structure under
+the directory /usr/src/linux:
+
+./drivers/streams		All STREAMS files
+  ./LiS				LiS source code tree
+  ./LiS/head			Source code for STREAMS executive
+  ./LiS/head/linux		Make directory for Linux kernel
+  ./LiS/head/user		Make directory for user mode testing
+  ./LiS/util			Source code for utility programs
+  ./LiS/util/linux		Make directory for utilities
+  ./LiS/drivers/str		Source code for sample STREAMS drivers
+				some of which must be linked into the
+				kernel for STREAMS to work.
+  ./LiS/drivers/str/user	Make directory for user-mode versions
+				of these drivers.
+  ./LiS/include/sys		STREAMS includes usually found in
+				/usr/include/sys on SVR4 systems.
+  ./LiS/include/sys/LiS		Internal includes for files in LiS/head.
+
+The directory /usr/src/linux/drivers/streams/Lis/util/linux builds
+some utility programs which you may want to copy out to /usr/local/bin.
+To do so, cd to that directory and enter "make install".
+
+The programs that get installed are as follows:
+
+  strconf		Processes a "config" file which specifies which
+			STREAMS drivers are to be linked into the kernel.
+
+  streams		A utility program that displays status of the
+			STREAMS system and allows the setting of
+			debug masks and some parameters.
+
+  polltst		A small program that is useful to test that
+			the STREAMS "poll" system call can be used
+			on both STREAMS and non-STREAMS file descriptors.
+
+
+David Grothe
+<dave@gcom.com>

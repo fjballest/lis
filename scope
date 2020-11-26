@@ -1,0 +1,1 @@
+cscope head/*.c include/sys/*.h include/sys/LiS/*.h head/user/*.[ch]

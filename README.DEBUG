@@ -1,0 +1,329 @@
+			Debugging Drivers
+			=================
+
+There are several techniques that you can use to debug your STREAMS
+driver.  You can use any or all of them.
+
+Print Things Out
+----------------
+
+Probably the most venerable method of debugging a driver is to print
+things out as the driver executes.  Here are some tips on this kind
+of debugging for STREAMS drivers.
+
+You can use the "printk()" function to print from the kernel.  You
+can also use the "cmn_err()" function for this purpose.  If you intend
+to port your driver to an SVR4 system then I would advise using "cmn_err()",
+otherwise, "printk()" is easier.
+
+You may want to print out your queue structure or a message at some
+stage of debugging.  Please look at the file .../LiS/head/strmdbg.c.
+It contains routines for printing out these structures in ways that
+are easy to read.
+
+
+Code Path Tracing
+-----------------
+
+If you have never used code path tracing in your driver code you
+may want to give it a try.  In one of your driver header files
+put in the following code, making the obvious modifications for
+your own driver name.  I like to put this in its own file, xylodbg.h.
+
+extern unsigned char    xylo_code_path[] ;
+extern unsigned         xylo_code_path_inx ;
+#define        CP(code,strng)  xylo_code_path[                       \
+                                xylo_code_path_inx =                  \
+                                    (xylo_code_path_inx + 1) & 0x1FF  \
+                                        ] = code
+
+In one of your driver ".c" files put the actual declarations:
+
+unsigned char    xylo_code_path[512] ;
+unsigned         xylo_code_path_inx ;
+
+Then in your driver code, liberally sprinkle you code with constructs
+such as the following:
+
+    CP(0x01, "xylo_open: have available minor") ;
+    if (xylop->table == NULL)
+    {
+	xylop->table = malloc(xylo_table_size) ;
+	if (xylop->table == NULL)
+	{
+	    CP(0x02, "xylo_open: could not allocate table") ;
+	    return(-ENOMEM) ;
+	}
+    }
+    ...
+
+In other words, mark the interesting points in your code with the
+CP() macro.  Use a unique number and comment string for each point
+in your code.  The resulting trace in the xylo_code_path table will
+plot the execution path through your code.
+
+You can elaborate on this technique in a couple of different ways.
+The first, and most obvious, is to change the definition of the
+CP() macro so that it does a printk() on the comment string.  Then
+you get a blow-by-blow on the console screen of what your driver
+is doing.
+
+The second is more subtle.  First, grep all of the CP strings out
+of your source code into a file called, say, "cplist".  You may want
+to sort this file so that the CP macros are in ascending order.
+Then, create a special file such as xylocp.c that goes something like
+the following:
+
+
+char            *xylo_cp_msgs[256] ;
+
+/*
+ * Define the CP macro so that is stores a pointer to the
+ * text string in the global message table.
+ */
+#define CP(code,msg)			\
+{					\
+        xylo_cp_msgs[code] = msg;	\
+}
+
+
+extern unsigned char    xylo_code_path[512] ;
+extern unsigned         xylo_code_path_inx ;
+
+void xylo_set_msgs()
+{
+    static int set_msgs_called ;
+
+    if (set_msgs_called) return ;
+
+    set_msgs_called++ ;
+
+#include "cplist"
+
+} /* xylo_set_msgs */
+
+void xylo_print_cp(void)
+{
+    unsigned            i ;
+    unsigned            n ;
+    unsigned            x ;
+
+    xylo_set_msgs() ;
+
+    printk("\n") ;
+
+    for (n = 512, i = xylo_code_path_inx; n; n--)
+    {
+        i = (i+1) & 0x1FF ;
+        x = xylo_code_path[i] ;
+        if (xylo_cp_msgs[x] == NULL)
+        {
+            if(x != 0)
+                printk("Code = %02x\n", x) ;
+        }
+        else
+            printk("%s\n", xylo_cp_msgs[x]) ;
+    }
+
+} /* xylo_print_cp */
+
+Then invent an ioctl for your driver that calls "xylo_print_cp()".  This
+will cause the whole code path table to be printed out in ASCII onto
+the console screeen and also saved in the syslog file.  You can then
+go analyze that file and see where you driver has been executing lately.
+
+This technique is good for complex drivers which already mostly
+work.  If you driver is crashing the system the only benefit you
+are likely to get from this method would be via the "print as you
+go" implementation.
+
+It is, however, very useful for production drivers as the overhead
+is low and the bug-finding potential for pathological situations
+is good.
+
+
+STREAMS Debugging Assistance
+----------------------------
+
+The Linux STREAMS package itself offers some debugging assistance.
+The STREAMS executive pays attention to a debug mask, a 32-bit
+variable of individual debug bits.  The debug mask can be set
+by your program (it is an external variable) or can be set from
+the command line via the "streams" utility program.  Most of the
+debug bits cause information to be printed out by STREAMS at various
+points in its execution.
+
+To set it from your program, place the following declaration
+in your driver code:
+
+	extern unsigned long lis_debug_mask ;
+
+If you include the file <sys/stream.h> in your driver source, as 
+you are likely to do, it will also include the file <sys/LiS/strmdbg.h>.
+This file contains the bit definitions for the debug mask.
+
+To set the debug mask from the command line use the construct:
+
+	streams -c 0xhhhhhhhh
+
+For a list of the bits and their mnemonic values enter:
+
+	streams -H
+
+The following is a quick summary of the debug bits.
+
+LIS_DEBUG_OPEN_BIT	0x00000001L	print out open calls
+LIS_DEBUG_CLOSE_BIT	0x00000002L	print out close calls
+LIS_DEBUG_READ_BIT	0x00000004L	print out read calls
+LIS_DEBUG_WRITE_BIT	0x00000008L	print out write calls
+
+LIS_DEBUG_IOCTL_BIT	0x00000010L	print out ioctl calls
+LIS_DEBUG_PUTNEXT_BIT	0x00000020L	not used
+LIS_DEBUG_STRRPUT_BIT	0x00000040L	print out strrput activity
+LIS_DEBUG_SIG_BIT	0x00000080L	print out signal information
+
+LIS_DEBUG_PUTMSG_BIT	0x00000100L	print out putmsg calls
+LIS_DEBUG_GETMSG_BIT	0x00000200L	print out getmsg calls
+LIS_DEBUG_POLL_BIT	0x00000400L	print out poll info
+LIS_DEBUG_LINK_BIT	0x00000800L	print out I_LINK/UNLINK info
+
+LIS_DEBUG_SAFE_BIT	0x00010000L	use "safe" STREAMS constructs
+LIS_DEBUG_TRCE_MSG_BIT	0x00020000L	trace msg from->to handoffs
+LIS_DEBUG_CLEAN_MSG_BIT	0x00040000L	zero freshly allocated messages
+
+LIS_DEBUG_MP_ALLOC	0x00100000L	print out streams msg allocations
+LIS_DEBUG_MP_FREEMSG	0x00200000L	print out streams msg frees
+LIS_DEBUG_MALLOC_BIT	0x00400000L	print out streams memory allocations
+LIS_DEBUG_MONITOR_MEM_BIT 0x00800000L	monitor memory integrity
+
+					The following for printing memory:
+LIS_DEBUG_DMP_QUEUE_BIT	0x01000000L	decode queues
+LIS_DEBUG_DMP_MBLK_BIT	0x02000000L	decode mblks
+LIS_DEBUG_DMP_DBLK_BIT	0x04000000L	print out data block as well as mblk
+LIS_DEBUG_DMP_STRHD_BIT	0x08000000L	decode stream head structure
+
+LIS_DEBUG_ADDRS_BIT	0x80000000L	print addresses as well as contents
+
+A few of these warrant special explanation.
+
+The LIS_DEBUG_SAFE_BIT is set to cause STREAMS to be more than usually
+paranoid about calling functions through function pointers.  So, for
+example, it will be very careful in the putnext() routine to make
+sure that all of the queue linkages really are present and that the
+function pointer really does exist.  If you suspect that you are
+stomping on one of your queue structures, set this bit.  Better yet,
+always set this bit as the overhead is not that great.  The "timetst"
+program measures this overhead.
+
+The LIS_DEBUG_CLEAN_MSG_BIT can be used if you suspect that you are
+utilizing garbage left over from the previous user in a message that
+you are allocating.  It zeros the message before returning it to
+you.
+
+The LIS_DEBUG_MP_ALLOC and LIS_DEBUG_MP_FREEMSG bits can be used to
+monitor allocations made via allocb() and freeb().
+
+The remaining debug bits pertain to the STREAMS memory allocator.
+
+
+
+STREAMS Memory Allocator Debugging
+----------------------------------
+
+STREAMS provides two functions, lis_malloc() and lis_free(), neither
+of which should be called directly.  There are macros provided for
+calling these routines.  lis_malloc() maintains a doubly linked list
+of all memory that it has allocated and each area is tagged with
+information concerning what type of structure is allocated in the
+area and where, in terms of file name and line number, the allocation
+was made from.  lis_free() also leaves the file and line number
+information in the freed area just in case you need to go hunting
+for it later.
+
+These routines also maintain a "guard word" at the end of the allocated
+memory area.  The guard word is automatically checked when the area
+is freed.  You can also check the guard word of any memory area allocated
+with the LiS allocator by calling the routine:
+
+    extern int lis_check_guard(void *ptr, char *msg) ;
+
+It returns 1 if the area's guard word is OK and 0 otherwise.  If the
+guard word is bad it prints out "msg".  The "ptr" parameter is the
+same value as was returned to you by the allocator call.
+
+In addition, if you set the debug bit LIS_DEBUG_MONITOR_MEM_BIT, STREAMS
+will check the guard words on all allocated memory areas every time
+the streams queues are run and every time an area is allocated or
+freed.  These mechanisms can help zero in on "run off the end" types
+of bugs in drivers.
+
+If you have interrupt routines that allocate memory then the
+LIS_DEBUG_MONITOR_MEM_BIT could cause trouble.  It traverses the linked
+list with interrupts enabled and your interrupt routine could cause
+the list to change while it is being traversed.
+
+Here is how to use the allocator.  The necessary header file is automatically
+included indirectly via <sys/stream.h>.
+
+	ALLOC(n)	Allocates 'n' bytes of memory and returns a pointer
+			to it.  The file name and line number of the caller
+			are passed to lis_malloc().
+	MALLOC(n)	Synonym for ALLOC(n).
+	ALLOCF(n,f)	Like ALLOC() execpt that the quoted string f is
+			prepended to the file name passed to lis_malloc()
+			as follows:     f __FILE__
+			This allows you to place an ASCII tag on your
+			allocated memory.
+	FREE(p)		Frees the memory pointed to by 'p' by calling
+			lis_free().
+
+At any time, you can cause STREAMS to print out a summary of all of
+the memory that it has allocated to it.  You can do this in either
+of two ways.
+
+From inside your driver you can call the following routine:
+
+	extern void lis_print_mem(void) ;
+
+This routine will print out all in-use allocated memory areas under
+the control of lis_malloc().  It will also check all the guard words.
+The verbosity of the printout is controlled by the debug mask bits
+LIS_DEBUG_DMP_QUEUE_BIT, LIS_DEBUG_DMP_MBLK_BIT, LIS_DEBUG_DMP_DBLK_BIT,
+LIS_DEBUG_DMP_STRHD_BIT and LIS_DEBUG_ADDRS_BIT.
+
+You can theoretically get into some trouble calling this routine if
+you have interrupt activity going on in which your interrupt routines
+are allocating memory and, thus, are changing the allocated memory
+linked list while lis_print_mem() is traversing it.
+
+You can also cause the memory areas to be printed out from the command
+line by using the following command.
+
+	streams -m
+
+These mechanisms are very helpful for finding memory leak bugs.
+Take a memory snapshot at time 't' and then again at time 't+n'
+after you know that there is memory leaking.  Put the two summaries
+into different files and diff them.  The difference will contain
+the leftover memory.  If you have been careful to use ALLOCF() and
+tag your memory areas then you will know right away which memory
+areas are leaking.
+
+
+Kernel Debugger Support
+-----------------------
+
+If you have two machines you can use one machine as a development
+system and the other as a test system.  You can run GDB on the development
+machine and use it to control the _kernel_ on the test system.  You
+can single step the kernel, set breakpoints, print structures, all
+the good stuff.
+
+All you need to do is download and install the gdbstub patches for
+the kernel for the test machine.  You can get these patches, and
+a README that tells you how to do this, at ftp.gcom.com.  Download
+the file /pub/linux/src/gdbstub/gdbstub-2.0.24.tar.gz.
+
+
+David Grothe
+<dave@gcom.com>

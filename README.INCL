@@ -1,0 +1,49 @@
+The directory /usr/src/linux/drivers/streams/LiS/include/sys contains
+some file which are usually found in /usr/include/sys on SVR4 machines.
+The one file that you are likely to need in an application program
+is the file "stropts.h".
+
+When you are compiling a STREAMS application program you will probably
+want to include on your compiler command line the following:
+
+    -I/usr/src/linux/drivers/streams/LiS/include
+
+Then put the following include line into your application program:
+
+#include <sys/stropts.h>
+
+Other files of interest in this directory for both application programs
+and drivers:
+
+cdi.h		NCR defined a Communications Device Interface protocol
+		as a STREAMS interfacing protocol to a driver which
+		implements a raw data interface to a serial device.
+		This is analogous to the CCITT X.211 standard.  This
+		file is distributed by permission of NCR.
+
+dlpi.h		AT&T defined the Data Link Provider Interface protocol
+		as a STREAMS interfacing protocol to a driver which
+		implements either a MAC level interface to a LAN
+		card or a data link protocol layer such as HDLC.
+		This is analogous to the CCITT X.212 standard.  This
+		file was typed in from the AT&T DLPI spec.
+
+npi.h		AT&T defined the Network Provider Interface protocol
+		as a STREAMS interfacing protocol to a driver which
+		implements a network layer communications protocol
+		such as X.25.  This is analogous to the CCITT X.213
+		standard.  This file was typed in from the AT&T NPI spec.
+
+poll.h		This file should be include in your application program
+		if you intend to use the "poll()" system call.
+
+The remainder of the files are more useful to STREAMS drivers than
+to application programs.  The easiest thing to do in your STREAMS
+driver is to always include <sys/stream.h>.  This file includes
+everything that you will need to use STREAMS constructs from within
+the kernel with the exception of "cmn_err()".  To use "cmn_err()"
+you must also include <sys/cmn_err.h> in your driver source.
+
+
+David Grothe
+<dave@gcom.com>

@@ -1,0 +1,65 @@
+		    Linux STREAMS Package
+
+INSTALLATION
+
+Now that you have unpacked the archive, the next thing to do is to
+make the utility programs that will be needed to build STREAMS and
+link it into the kernel.
+
+In this directory enter:
+
+	make utils
+
+This will make the utility programs.  Next, look at the file README.PATCH
+and follow the instructions there.
+
+
+CONTENTS
+
+This package gives UNIX(TM) SVR4 compatible STREAMS capability to
+the Linux system.  It consists of the following parts:
+
+1) A patch for the kernel (currently 2.0.24) for the STREAMS
+   executive itself, see README.PATCH.
+
+2) A few test utility programs for testing STREAMS features and
+   running performance tests, see README.TEST.
+
+3) A set of include files a few of which are useful to include in
+   application programs, see README.INCL.
+
+4) A method for installing binary drivers into the kernel at kernel-
+   build time as well as sample STREAMS drivers in source code form,
+   see README.DRVRS.
+
+5) Some debugging aids for STREAMS drivers, see README.DEBUG.
+
+
+REFERENCE
+
+STREAMS is too large a topic for me to try to document in these
+README files.  There has been quite a bit written on the subject.
+Here are some suggested books that you might look at to learn more
+about STREAMS.
+
+The best references to have are "The Magic Garden Explained" (Prentice-Hall)
+and "UNIX System V Network Programming (Addison Wesley). The former describes
+the implementation of Unixware SVR4.2, while the latter has excellent
+coverage of writing STREAMS drivers and modules, DLPI and TPI, etc. It includes
+a sample Ethernet driver, SLIP driver, TTY module (simplified ldterm), and
+a TPI multiplexor.
+
+Two other highly technical reference works are "UNIX SYSTEM V RELEASE 4
+Programmer's Guide: STREAMS" (Prentice Hall, ISBN 0-13-947003-4) and
+"UNIX SYSTEM V RELEASE 4 Device Driver Interface/Driver-Kernel Interface
+(DDI/DKI) Reference Manual" (Prentice Hall, ISBN 0-13-957531-6).  The
+STREAMS Guide contains definitive reference material on drivers, messages,
+queues, etc.  The DDI/DKI contains driver entry point definitions and
+definitions of kernel routines that can be called from STREAMs drivers.
+It is best to obtain both of these and familarize yourself with them
+before attempting to write your first STREAMS driver.
+
+Licensing issues are covered in the file LICENSE and LICENSE.README.
+
+David Grothe
+<dave@gcom.com>

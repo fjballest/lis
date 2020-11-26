@@ -1,0 +1,302 @@
+		    STREAMS Drivers
+		    ===============
+
+This REAME contains information about the following:
+
+1) Sample STREAMS drivers include with LiS.
+2) Tips for writing your own STREAMS drivers.
+3) How to install binary (pre-compiled) STREAMS drivers in
+   the kernel.
+
+
+			Sample Drivers
+			==============
+
+The LiS package comes with some sample driver code in the directory
+/usr/src/linux/drivers/streams/LiS/drivers/str.
+
+These drivers are as follows.  Those left undocumented are inherited
+from previous authors.
+
+clone.c		This driver implements the STREAMS cloning mechanism.
+		It must be included with the kernel.
+
+dlpidriver.c	This is a sample DLPI driver which was never finished.
+
+loop.c		This is a loopback driver which ties two STREAMS together
+		in memory.  It has been extended with several ioctls
+		to alter its behavior.  It is used for testing STREAMS
+		and must be linked into the kernel for the strtst
+		program to work correctly.  The timetst program uses
+		this driver also.
+
+minimux.c	This is a miniature multiplexor driver.  It is used for
+		testing STREAMS.  It can also be used as an illustration
+		of how multiplexor drivers are put together.  It must be
+		in the kernel for strtst to work.
+
+printk.c	This driver is used in conjunction with strtst.  It
+		allows strtst to write an ASCII string down to the
+		driver which it then prints out using the kernel
+		printk routine.  This allows user level messages and
+		kernel generated debug messages to be kept in sync
+		and end up in the same file (syslog).  This driver must
+		be linked into the kernel for strtst to work correctly.
+
+relay.c		This is a pushable module that is used by strtst.  It
+		must be linked into the kernel for strtst to work.
+
+runq.c		This driver never returns from its open routine.
+		It implements a kernel process which is awakened
+		to run the STREAMS queues.  This driver must be
+		linked into the kernel for STREAMS to function
+		at all.  Also, its open routine must be called
+		in order for STREAMS to function.  The easiest
+		way to ensure that this is done is to insert
+		the following line into your rc.local file:
+
+			cat /dev/runq &
+
+
+			Writing STREAMS Drivers
+			=======================
+
+This topic is too broad to cover in its entirety in a README file.
+Before much of the advice in this file will make sense to you, you
+will probably have to become familiar with the driver concepts
+contained in the STREAMS Programmer's Guide (see README for reference).
+
+You may locate your driver anywhere in the directory hierarchy.  It
+does not have to reside in the kernel source tree.  Suppose, for
+a running example, that you choose to locate your driver source
+in the directory /home/me/mydrvr.
+
+In your driver source code file(s) include the file <sys/stream.h>
+to get defines and prototypes for nearly all of the STREAMS constructs
+that you will be using in your driver.  If you are going to use
+the cmn_err() mechanism for writing messages on the console then
+also include <sys/cmn_err.h>.
+
+In your Makefile, put the following on your cc command line:
+
+    -I/usr/src/linux/drivers/str/LiS/include
+    -D__KERNEL__ -DLINUX
+
+The -D's are necessary to give your driver the kernel's view of the
+header files and to get the Linux version in those cases where
+alternatives exist.
+
+Choose a short prefix to put on the front of all your identifier
+names and routine names.  For example, "xylo_".  Thus, the main
+streamtab entry for your driver would be:
+
+    struct streamtab xylo_info =
+    {
+      &xylo_rinit,                  /* read queue */
+      &xylo_winit,                  /* write queue */
+      NULL,                         /* mux read queue  */
+      NULL                          /* mux write queue */
+    };
+
+The open routine would be called "xylo_open(....)" and so on.
+
+The role of this prefix will become clearer in the later section of
+this README file which describes how to install binary drivers into
+the kernel.
+
+It is important that you get the declaration of your driver open
+routine correct.  There was a different prototype for the open
+routine in SVR 3 versus SVR 4.  The Linux STREAMS package uses
+the SVR 4 style only.  The prototype for your open routine should
+be as follows:
+
+    int xylo_open(queue_t *q, dev_t *dev, int oflag, int sflag, cred_t *cred_p);
+
+These prototypes can be found in the DDI/DKI or consult the LiS include
+file sys/LiS/queue.h.  Look for the definition of the structure qinit_t.
+
+
+Configuring Your Driver
+=======================
+
+You do not need to be concerned about driver registration in the Linux
+kernel.  The STREAMS driver configuration process takes care of that
+behind the scenes.
+
+STREAMS driver configuration takes place in the directory
+/usr/src/linux/drivers/streams/LiS/head/linux.  The file which contains
+the configuration information is called "config".  When the kernel
+is built the STREAMS utility program "strconf" is run with this
+file as input.  The output of the "strconf" program is a set of
+files as follows (in that same directory):
+
+    config.h		The config file specifications turned into defines.
+    modconf.c		STREAMS driver and module configuration table
+			which is used by STREAMS at boot time to register
+			all of the STREAMS drivers.
+    makenodes.c		A program that is compiled into "makenodes" which,
+			when run, makes all of the /dev entries for
+			STREAMS drivers.
+
+What you need to do is to make appropriate entries into the "config"
+file for your driver.  Incidentally, the source for the strconf program
+resides in the directory /usr/src/linux/drivers/streams/LiS/util and
+contains a length comment which details the syntax of the config file.
+
+The config file specifies STREAMS drivers, pushable modules, their
+/dev entries and their hardware characteristics.  The following are
+some examples of each section of the file.
+
+Driver Section
+--------------
+
+#       name            prefix  major   n-minors
+driver  clone-drvr      clone_  50
+driver  loop-around     loop_   *
+driver  mini-mux        mux_    *
+driver  runq            runq_   *
+driver  printk          printk_ *
+
+This section declares the presence of your driver to STREAMS.
+To add your hypothetical driver to this list, insert a line something
+like the following.
+
+driver  mydrvr          xylo_ *
+
+By doing this you are declaring that you have a driver named "mydrvr"
+which uses the symbol-name prefix "xylo_" and you don't care what
+its major device number is.  The "mydrvr" is a name that you make
+up that is not used anywhere but in the config file to refer to this
+driver.  The "xylo_" is the prefix that you used in coding your
+driver.  It is used to synthesize the name "xylo_info", the main
+streamtab structure for your driver.  The "*" says that you don't
+care what major number your driver is assigned.  The "n-minors"
+field is a place to say how many minor devices your driver handles,
+but it is not used anywhere, and thus is left empty.
+
+Use the "driver" declaration for hardware drivers and STREAMS multiplexor
+drivers.
+
+If your driver had been a pushable module rather than an actual
+driver then you would have added to the following section, something
+like the following.
+
+#       name            prefix
+module  relay           relay_
+module  relay2          relay2_
+module	mydrvr		xylo_
+
+You will probably want some /dev entries made so that you can access
+your driver via the stream head and the file system.  Do that by making
+additions to the "node" section of the config file.  For example:
+
+#       name              type  perm    major           minor
+node    /dev/loop.1          c  0644    loop-around     1
+node    /dev/loop.2          c  *       loop-around     2
+node    /dev/loop_clone      c  *       clone-drvr      loop-around
+node    /dev/mux_clone       c  *       clone-drvr      mini-mux
+node    /dev/clone_drvr      c  *       clone-drvr      0
+node    /dev/runq            c  0600    runq            0
+node    /dev/printk          c  *       printk          0
+node    /dev/xylo            c  *       mydrvr          0
+node    /dev/xylo_clone      c  *       clone-drvr      mydrvr
+
+In this case we have added an entry that opens minor device zero
+(/dev/xylo) and a clone entry that will open your driver via the
+STREAMS clone driver (/dev/xylo_clone).
+
+The clone driver is a special feature of STREAMS.  You can read all
+about it in the reference documents (see README), but the gist of
+the idea is to make it easy for an application program to open a
+file to the STREAM and always get an available minor device.  In the
+case of a non-clone device, the application has to "guess" as to
+which minor device numbers are unused.  For a clone device, the
+driver itself assigns the minor device number and always picks
+one that is unused for the newly opened file.
+
+The mechanism for the clone device involves the use of a special
+driver, the clone driver.  It is declared in the "config" file just
+like any other STREAMS driver.  The clone driver has a specified
+major device number.  It also has minor devices that are opened
+via directed (non-clone) opens.  The minor device numbers of the clone
+driver are the *major* device numbers of another STREAMS driver.
+The clone driver's open routine calls the open routine of the
+second STREAMS driver by using the minor device number of the
+open to /dev/clone as the major device number of the driver whose
+open routine is to be called.
+
+This is why the entry in the "node" section of the "config" file
+for a clone device has the name of the clone driver in the
+major number field and the name of the driver which eventually
+gets the open call in its minor number field.
+
+Note that the "cflag" parameter to the driver open routine will
+indicate a clone open if the open has passed through the clone
+driver.  This allows your driver to distinguish between directed
+(non-clone) opens and clone opens.
+
+
+			Installing Binary Drivers
+			=========================
+
+Once you have made your config file entry you are ready for one
+last step before rebuilding your kernel.  You need to do some
+editing in the "pkg" subdirectory tree of the kernel to make
+your driver's object file(s) available to the kernel link mechanism.
+
+The starting directory for this is /usr/src/linux/drivers/streams/pkg.
+Traditional SVR4 STREAMS drivers provide a file called Driver.o which
+contains the driver code and a file Space.c which is compiled into
+Space.o which allocated configuration information for the driver.
+The Space.c file includes the file "config.h" which is generated
+as a result of processing the "config" file.
+
+You do not have to follow this model to link your STREAMS driver into
+the kernel.  What really happens is that the build process does a
+"make" in each subdirectory of the ".../pkg" directory and then
+links all of the resulting ".../pkg/*/*.o" files together into
+one master "drivers.o" file.  The "drivers.o" file is then linked
+into the kernel.
+
+What this means is that you need to establish a subdirectory for
+your driver in the ".../pkg" directory.  So, cd to the directory
+/usr/src/linux/drivers/streams/pkg and do "mkdir mydrvr".
+
+Now cd to mydrvr and construct a Makefile that looks something
+like the following:
+
+    all:	Driver.o
+
+    Driver.o:	/home/me/mydrvr/mydrvr.o
+	    cp $? $@
+
+That is all that needs to be there.  Just copy your driver's object
+file into the ".../pkg/mydrvr" directory.  You can make this Makefile
+more sophisticated if you want to, but this minimal version will do
+nicely.
+
+You can also construct a minimal Makefile such as this one for a
+binary STREAMS driver that you get from someone else.  Or, you can
+simply plant the binary ".o" file in the ".../pkg/theirdrvr" directory
+with a dummy Makefile (to keep the build process happy) and you are
+done.
+
+Build the Kernel
+----------------
+
+Now you can build your kernel.  Go through your usual kernel build
+procedure and the resulting kernel will have your driver in it.
+Before you can effectively use your driver you will have to run
+the "makenodes" program generated by a combination of the STREAMS
+config process and the kernel build process.  To do this, do the
+following:
+
+    cd /usr/src/linux/drivers/streams/LiS/head/linux
+    makenodes
+
+Remember to run lilo on your new kernel.  Reboot and you are ready
+to start testing your STREAMS driver.
+
+
+David Grothe
+<dave@gcom.com>
